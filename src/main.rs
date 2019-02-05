@@ -7,47 +7,47 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
 
-struct Entry {
-    msg: String,
+struct Content {
+    content: String,
     prob: u32,
 }
 
-struct Entries(Vec<Entry>);
+struct Contents(Vec<Content>);
 
-struct ListItem {
-    entries: Entries,
+struct Element {
+    contents: Contents,
     prob: u32,
 }
 
-struct List(Vec<ListItem>);
+struct Elements(Vec<Element>);
 
-impl Entries {
-    fn choose_one(&self, rng: &mut impl Rng) -> &Entry {
-        let Entries(ref entries) = *self;
-        let sum = entries.iter().fold(0, |x, &Entry { prob, .. }| x + prob);
+impl Contents {
+    fn choose_one(&self, rng: &mut impl Rng) -> &Content {
+        let Contents(ref contents) = *self;
+        let sum = contents.iter().fold(0, |x, &Content { prob, .. }| x + prob);
         let rnd = rng.gen_range(0, sum);
 
         let mut ps = 0;
-        for entry in entries {
-            ps += entry.prob;
+        for content in contents {
+            ps += content.prob;
             if rnd < ps {
-                return entry;
+                return content;
             }
         }
 
-        unreachable!("choose_one finished and no entry was chosen.");
+        unreachable!("choose_one finished and no content was chosen.");
     }
 }
 
-impl List {
+impl Elements {
     fn generate_sentence(&self, rng: &mut impl Rng) -> String {
         let mut res = String::new();
-        let List(ref entries) = *self;
-        for item in entries {
+        let Elements(ref contents) = *self;
+        for item in contents {
             let rnd = rng.gen_range(0, 100);
             if rnd < item.prob {
-                let entry = item.entries.choose_one(rng);
-                res += &entry.msg;
+                let content = item.contents.choose_one(rng);
+                res += &content.content;
             }
         }
         res
@@ -68,7 +68,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn read_index(file_name: &Path) -> io::Result<List> {
+fn read_index(file_name: &Path) -> io::Result<Elements> {
     let f = File::open(file_name)?;
     let br = BufReader::new(f);
     let mut list = Vec::new();
@@ -79,27 +79,24 @@ fn read_index(file_name: &Path) -> io::Result<List> {
             l.next().unwrap().parse().unwrap(),
             Path::new(l.next().unwrap()),
         );
-        let entries = read_entries(&file_name)?;
-        list.push(ListItem {
-            entries: Entries(entries),
-            prob,
-        });
+        let contents = read_contents(&file_name)?;
+        list.push(Element { contents, prob });
     }
 
-    Ok(List(list))
+    Ok(Elements(list))
 }
 
-fn read_entries(file_name: &Path) -> io::Result<Vec<Entry>> {
+fn read_contents(file_name: &Path) -> io::Result<Contents> {
     let f = File::open(file_name)?;
     let br = BufReader::new(f);
 
-    let mut entries = Vec::new();
+    let mut contents = Vec::new();
     for l in br.lines() {
         let l = l?;
-        let mut l = l.split(",");
-        let (prob, msg) = (l.next().unwrap().parse().unwrap(), l.next().unwrap().into());
-        entries.push(Entry { msg, prob });
+        let mut l = l.split(',');
+        let (prob, content) = (l.next().unwrap().parse().unwrap(), l.next().unwrap().into());
+        contents.push(Content { content, prob });
     }
 
-    Ok(entries)
+    Ok(Contents(contents))
 }
