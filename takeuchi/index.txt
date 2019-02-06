@@ -1,3 +1,0 @@
-100,noun.txt
-50,interjection.txt
-100,verb.txt

@@ -132,7 +132,7 @@ fn into_token(s: &str) -> Vec<String> {
 
     flush(&mut tokens, &mut token);
 
-    dbg!(tokens)
+    tokens
 }
 
 impl Parser {
@@ -197,7 +197,7 @@ impl Parser {
             "let" => {
                 let ident = self.next_token()?;
                 let expr = self.parse_expr()?;
-                Ok(Some(Sentence::Let { ident, expr }))
+                Ok(Some(Sentence::Let(Let { ident, expr })))
             }
             "choice" => {
                 let weight = self.next_token()?.parse()?;
@@ -207,7 +207,7 @@ impl Parser {
                     let item = self.parse_item()?;
                     items.push(item);
                     if self.multieat(&[",", ")"])? == ")" {
-                        return Ok(Some(Sentence::Choice { weight, items }));
+                        return Ok(Some(Sentence::Choice(Choice { weight, items })));
                     }
                 }
             }
