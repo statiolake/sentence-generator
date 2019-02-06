@@ -110,7 +110,7 @@ fn into_token(s: &str) -> Vec<String> {
                     tokens.push("\"".into());
                 }
                 ' ' | '\n' | '\r' => flush(&mut tokens, &mut token),
-                '{' | '}' | '(' | ')' | '[' | ']' | '?' | '%' | '$' => {
+                '{' | '}' | '[' | ']' | '?' | '%' | '$' => {
                     flush(&mut tokens, &mut token);
                     tokens.push(ch.to_string());
                 }
@@ -207,13 +207,11 @@ impl Parser {
             }
             "choice" | "c" => {
                 let weight = self.next_token()?.parse()?;
-                self.eat("(")?;
                 let mut items = Vec::new();
-                while !self.predict(")") {
+                while !self.predict(";") {
                     let item = self.parse_item()?;
                     items.push(item);
                 }
-                self.eat(")")?;
                 Ok(Sentence::Choice(Choice { weight, items }))
             }
             _ => unreachable!("multi_eat returned unexpected value"),
