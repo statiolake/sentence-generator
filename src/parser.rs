@@ -110,7 +110,7 @@ fn into_token(s: &str) -> Vec<String> {
                     tokens.push("\"".into());
                 }
                 ' ' | '\n' | '\r' => flush(&mut tokens, &mut token),
-                '{' | '}' | '(' | ')' | '[' | ']' | '?' | '%' | '+' | '$' => {
+                '{' | '}' | '(' | ')' | '[' | ']' | '?' | '%' | '$' => {
                     flush(&mut tokens, &mut token);
                     tokens.push(ch.to_string());
                 }
@@ -223,19 +223,20 @@ impl Parser {
     }
 
     fn parse_item(&mut self) -> Result<Item> {
-        match self.multi_eat(&["+", "?"])?.as_str() {
-            "+" => Ok(Item {
-                prob: 100,
-                expr: self.parse_expr()?,
-            }),
-            "?" => Ok(Item {
+        if self.predict("?") {
+            self.eat("?")?;
+            Ok(Item {
                 prob: self.next_token()?.parse()?,
                 expr: {
                     self.eat("%")?;
                     self.parse_expr()?
                 },
-            }),
-            _ => unreachable!("internal error: multieat reaturned other string than expectations."),
+            })
+        } else {
+            Ok(Item {
+                prob: 100,
+                expr: self.parse_expr()?,
+            })
         }
     }
 
