@@ -7,6 +7,9 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
 
+mod ast;
+mod parser;
+
 struct Content {
     content: String,
     prob: u32,
