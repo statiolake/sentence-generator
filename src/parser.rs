@@ -7,17 +7,6 @@ use std::vec::IntoIter;
 
 use crate::ast::*;
 
-// #[derive(Debug)]
-// pub struct FilePos {
-//     linum: u32,
-// }
-
-// impl fmt::Display for FilePos {
-//     fn fmt(&self, b: &mut fmt::Formatter) -> fmt::Result {
-//         write!(b, "in line {}", self.linum)
-//     }
-// }
-
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
