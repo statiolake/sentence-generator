@@ -110,7 +110,7 @@ fn into_token(s: &str) -> Vec<String> {
                     tokens.push("\"".into());
                 }
                 ' ' | '\n' | '\r' => flush(&mut tokens, &mut token),
-                '{' | '}' | '(' | ')' | '[' | ']' | '?' | '%' | '+' | ',' | '$' => {
+                '{' | '}' | '(' | ')' | '[' | ']' | '?' | '%' | '+' | '$' => {
                     flush(&mut tokens, &mut token);
                     tokens.push(ch.to_string());
                 }
@@ -210,9 +210,6 @@ impl Parser {
                 self.eat("(")?;
                 let mut items = Vec::new();
                 while !self.predict(")") {
-                    if !items.is_empty() {
-                        self.eat(",")?;
-                    }
                     let item = self.parse_item()?;
                     items.push(item);
                 }
