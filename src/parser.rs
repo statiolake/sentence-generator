@@ -150,19 +150,25 @@ impl Parser {
         self.tokens.next().ok_or(Error::UnexpectedEof)
     }
 
-    fn multi_predict(&mut self, expected: &[&'static str]) -> bool {
-        self.peek_token()
-            .and_then(|found| check_unexpected(expected, found))
-            .is_ok()
-    }
-
     fn multi_eat(&mut self, expected: &[&'static str]) -> Result<String> {
         self.next_token()
             .and_then(|found| check_unexpected(expected, found))
     }
 
     fn predict(&mut self, expected: &'static str) -> bool {
-        self.multi_predict(&[expected])
+        self.peek_token()
+            .and_then(|found| check_unexpected(&[expected], found))
+            .is_ok()
+    }
+
+    fn may_eat(&mut self, expected: &'static str) -> bool {
+        if self.predict(expected) {
+            self.eat(expected)
+                .expect("internal error: expected token was proved to exist but eat failed.");
+            true
+        } else {
+            false
+        }
     }
 
     fn eat(&mut self, expected: &'static str) -> Result<()> {
@@ -221,8 +227,7 @@ impl Parser {
     }
 
     fn parse_item(&mut self) -> Result<Item> {
-        if self.predict("?") {
-            self.eat("?")?;
+        if self.may_eat("?") {
             Ok(Item {
                 prob: self.next_token()?.parse()?,
                 expr: {
