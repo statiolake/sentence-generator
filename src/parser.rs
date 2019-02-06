@@ -86,7 +86,10 @@ fn into_token(s: &str) -> Vec<String> {
         next_escaped = false;
         if in_dbl_quote {
             if escaped {
-                token.push(ch)
+                match ch {
+                    'n' => token.push('\n'),
+                    _ => token.push(ch),
+                }
             } else {
                 match ch {
                     '\\' => next_escaped = true,
