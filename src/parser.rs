@@ -193,13 +193,13 @@ impl Parser {
     }
 
     fn parse_sentence(&mut self) -> Result<Option<Sentence>> {
-        match self.multieat(&["let", "choice", "}"])?.as_str() {
-            "let" => {
+        match self.multieat(&["let", "choice", "l", "c", "}"])?.as_str() {
+            "let" | "l" => {
                 let ident = self.next_token()?;
                 let expr = self.parse_expr()?;
                 Ok(Some(Sentence::Let(Let { ident, expr })))
             }
-            "choice" => {
+            "choice" | "c" => {
                 let weight = self.next_token()?.parse()?;
                 self.eat("(")?;
                 let mut items = Vec::new();
