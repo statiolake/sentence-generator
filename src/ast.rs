@@ -11,11 +11,26 @@ pub struct Ast {
 #[derive(Debug)]
 pub struct Program {
     pub rules: HashMap<String, Rule>,
+    pub vocabs: HashMap<String, Vocab>,
 }
 
 #[derive(Debug)]
 pub struct Rule {
+    pub name: String,
     pub sentences: Vec<Sentence>,
+}
+
+#[derive(Debug)]
+pub struct Vocab {
+    pub name: String,
+    pub index: HashMap<String, usize>,
+    pub sets: Vec<VocabSet>,
+}
+
+#[derive(Debug)]
+pub struct VocabSet {
+    pub weight: u32,
+    pub forms: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -47,6 +62,7 @@ pub enum Expr {
     Variable(String),
     Literal(String),
     Rule(String),
+    Vocab { name: String, label: String },
 }
 
 pub type Result = result::Result<String, String>;
@@ -64,17 +80,37 @@ impl Program {
             .get("main")
             .ok_or_else(|| "`main` rule is not defined.".to_string())?;
 
-        main.generate(&self.rules, rng)
+        main.generate(&self.rules, &self.vocabs, rng)
     }
 }
 
+fn choose_one<'a, T: HasWeight>(choices: &[&'a T], rng: &mut impl Rng) -> &'a T {
+    let sum = choices.iter().fold(0, |ps, x| ps + x.weight());
+    let rnd = rng.gen_range(0, sum);
+
+    let mut ps = 0;
+    for choice in choices {
+        ps += choice.weight();
+        if rnd < ps {
+            return choice;
+        }
+    }
+
+    unreachable!("choose_one finished and no choice was chosen.");
+}
+
 impl Rule {
-    fn generate(&self, rules: &HashMap<String, Rule>, rng: &mut impl Rng) -> Result {
+    fn generate(
+        &self,
+        rules: &HashMap<String, Rule>,
+        vocabs: &HashMap<String, Vocab>,
+        rng: &mut impl Rng,
+    ) -> Result {
         let lets = self.sentences.iter().filter_map(|x| x.get_let_ref());
         let mut variables = HashMap::new();
         for l in lets {
             if variables
-                .insert(&l.ident, l.expr.generate(rules, &variables, rng)?)
+                .insert(&l.ident, l.expr.generate(rules, vocabs, &variables, rng)?)
                 .is_some()
             {
                 return Err(format!("re-definition of variable {}", l.ident));
@@ -82,24 +118,13 @@ impl Rule {
         }
 
         let choices = self.sentences.iter().filter_map(|x| x.get_choice_ref());
-        Self::choose_one(choices.collect(), rng).generate(rules, &variables, rng)
+        choose_one(&choices.collect::<Vec<_>>(), rng).generate(rules, vocabs, &variables, rng)
     }
+}
 
-    fn choose_one<'a>(choices: Vec<&'a Choice>, rng: &mut impl Rng) -> &'a Choice {
-        let sum = choices
-            .iter()
-            .fold(0, |x, &&Choice { weight, .. }| x + weight);
-        let rnd = rng.gen_range(0, sum);
-
-        let mut ps = 0;
-        for choice in choices {
-            ps += choice.weight;
-            if rnd < ps {
-                return choice;
-            }
-        }
-
-        unreachable!("choose_one finished and no choice was chosen.");
+impl Vocab {
+    fn generate(&self, index: usize, rng: &mut impl Rng) -> Result {
+        choose_one(&self.sets.iter().collect::<Vec<_>>(), rng).generate(index)
     }
 }
 
@@ -122,12 +147,13 @@ impl Choice {
     fn generate(
         &self,
         rules: &HashMap<String, Rule>,
+        vocabs: &HashMap<String, Vocab>,
         variables: &HashMap<&String, String>,
         rng: &mut impl Rng,
     ) -> Result {
         let mut s = String::new();
         for item in &self.items {
-            if let Some(x) = item.generate(rules, variables, rng) {
+            if let Some(x) = item.generate(rules, vocabs, variables, rng) {
                 s += &x?;
             }
         }
@@ -135,16 +161,23 @@ impl Choice {
     }
 }
 
+impl VocabSet {
+    fn generate(&self, idx: usize) -> Result {
+        Ok(self.forms[idx].clone())
+    }
+}
+
 impl Item {
     fn generate(
         &self,
         rules: &HashMap<String, Rule>,
+        vocabs: &HashMap<String, Vocab>,
         variables: &HashMap<&String, String>,
         rng: &mut impl Rng,
     ) -> Option<Result> {
         let rnd = rng.gen_range(0, 100);
         if rnd < self.prob {
-            Some(self.expr.generate(rules, variables, rng))
+            Some(self.expr.generate(rules, vocabs, variables, rng))
         } else {
             None
         }
@@ -155,6 +188,7 @@ impl Expr {
     fn generate(
         &self,
         rules: &HashMap<String, Rule>,
+        vocabs: &HashMap<String, Vocab>,
         variables: &HashMap<&String, String>,
         rng: &mut impl Rng,
     ) -> Result {
@@ -167,7 +201,36 @@ impl Expr {
             Expr::Rule(ref rule) => rules
                 .get(rule.as_str())
                 .ok_or_else(|| format!("undeclared rule: {}", rule))?
-                .generate(rules, rng),
+                .generate(rules, vocabs, rng),
+            Expr::Vocab {
+                ref name,
+                ref label,
+            } => vocabs
+                .get(name.as_str())
+                .ok_or_else(|| format!("undeclared vocab: {}", name))
+                .and_then(|vocab| {
+                    let index = vocab
+                        .index
+                        .get(label.as_str())
+                        .ok_or_else(|| format!("undeclared form: {}", label))?;
+                    vocab.generate(*index, rng)
+                }),
         }
+    }
+}
+
+trait HasWeight {
+    fn weight(&self) -> u32;
+}
+
+impl HasWeight for Choice {
+    fn weight(&self) -> u32 {
+        self.weight
+    }
+}
+
+impl HasWeight for VocabSet {
+    fn weight(&self) -> u32 {
+        self.weight
     }
 }

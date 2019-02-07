@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error;
 use std::fmt;
@@ -21,6 +20,12 @@ pub enum Error {
     ReDefinitionOfRule {
         name: String,
     },
+    ReDefinitionOfVocab {
+        name: String,
+    },
+    ReDefinitionOfVocabForm {
+        name: String,
+    },
     ParseIntError(ParseIntError),
 }
 
@@ -37,6 +42,10 @@ impl fmt::Display for Error {
                 expected, found
             ),
             Error::ReDefinitionOfRule { ref name } => write!(b, "rule {} re-defined.", name),
+            Error::ReDefinitionOfVocab { ref name } => write!(b, "vocab {} re-defined.", name),
+            Error::ReDefinitionOfVocabForm { ref name } => {
+                write!(b, "vocab form {} re-defined.", name)
+            }
             Error::ParseIntError(ref e) => write!(b, "invalid digit: {}", e),
         }
     }
@@ -113,7 +122,7 @@ fn into_token(s: &str) -> Vec<String> {
                     tokens.push("\"".into());
                 }
                 ' ' | '\n' | '\r' => flush(&mut tokens, &mut token),
-                '{' | '}' | '[' | ']' | '?' | '%' | '$' => {
+                '{' | '}' | '[' | ']' | '(' | ')' | '|' | '?' | '%' | '$' => {
                     flush(&mut tokens, &mut token);
                     tokens.push(ch.to_string());
                 }
@@ -129,17 +138,13 @@ fn into_token(s: &str) -> Vec<String> {
     tokens
 }
 
-fn check_unexpected<'a>(
-    expected: &[&'static str],
-    found: impl Into<Cow<'a, str>>,
-) -> Result<String> {
-    let found = found.into();
+fn check_unexpected<'a>(expected: &[&'static str], found: &'a str) -> Result<&'a str> {
     if expected.iter().any(|&e| e == found) {
-        Ok(found.into_owned())
+        Ok(found)
     } else {
         Err(Error::UnexpectedToken {
             expected: expected.into(),
-            found: found.into_owned(),
+            found: found.into(),
         })
     }
 }
@@ -155,13 +160,16 @@ impl Parser {
 
     fn multi_eat(&mut self, expected: &[&'static str]) -> Result<String> {
         self.next_token()
-            .and_then(|found| check_unexpected(expected, found))
+            .and_then(|found| check_unexpected(expected, found.as_str()).map(|x| x.into()))
+    }
+
+    fn multi_predict(&mut self, expected: &[&'static str]) -> Result<&str> {
+        self.peek_token()
+            .and_then(|found| check_unexpected(expected, found.as_str()))
     }
 
     fn predict(&mut self, expected: &'static str) -> bool {
-        self.peek_token()
-            .and_then(|found| check_unexpected(&[expected], found))
-            .is_ok()
+        self.multi_predict(&[expected]).is_ok()
     }
 
     fn may_eat(&mut self, expected: &'static str) -> bool {
@@ -184,27 +192,66 @@ impl Parser {
 
     fn parse_program(&mut self) -> Result<Program> {
         let mut rules = HashMap::new();
+        let mut vocabs = HashMap::new();
 
         while !self.check_finished() {
-            self.eat("rule")?;
-            let name = self.next_token()?;
-            self.eat("{")?;
-            let rule = self.parse_rule()?;
-            if rules.insert(name.clone(), rule).is_some() {
-                return Err(Error::ReDefinitionOfRule { name });
+            match self.multi_predict(&["rule", "vocab"])? {
+                "rule" => {
+                    let rule = self.parse_rule()?;
+                    let name = rule.name.clone();
+                    if rules.insert(rule.name.clone(), rule).is_some() {
+                        return Err(Error::ReDefinitionOfRule { name });
+                    }
+                }
+                "vocab" => {
+                    let vocab = self.parse_vocab()?;
+                    let name = vocab.name.clone();
+                    if vocabs.insert(vocab.name.clone(), vocab).is_some() {
+                        return Err(Error::ReDefinitionOfVocab { name });
+                    }
+                }
+                _ => unreachable!("internal error: multi_predict returned an unexpected value"),
             }
-            self.eat("}")?;
         }
 
-        Ok(Program { rules })
+        Ok(Program { rules, vocabs })
     }
 
     fn parse_rule(&mut self) -> Result<Rule> {
+        self.eat("rule")?;
+        let name = self.next_token()?;
+        self.eat("{")?;
         let mut sentences = Vec::new();
         while !self.predict("}") {
             sentences.push(self.parse_sentence()?);
         }
-        Ok(Rule { sentences })
+        self.eat("}")?;
+
+        Ok(Rule { name, sentences })
+    }
+
+    fn parse_vocab(&mut self) -> Result<Vocab> {
+        self.eat("vocab")?;
+        let name = self.next_token()?;
+        let mut index = HashMap::new();
+        self.eat("(")?;
+        let mut idx = 0;
+        while !self.predict(")") {
+            let name = self.next_token()?;
+            if index.insert(name.clone(), idx).is_some() {
+                return Err(Error::ReDefinitionOfVocabForm { name });
+            }
+            idx += 1;
+        }
+        self.eat(")")?;
+        self.eat("{")?;
+        let mut sets = Vec::new();
+        while !self.predict("}") {
+            let set = self.parse_vocabset(idx)?;
+            sets.push(set);
+        }
+        self.eat("}")?;
+        Ok(Vocab { name, index, sets })
     }
 
     fn parse_sentence(&mut self) -> Result<Sentence> {
@@ -229,6 +276,19 @@ impl Parser {
         res
     }
 
+    fn parse_vocabset(&mut self, n: usize) -> Result<VocabSet> {
+        self.eat("set")?;
+        let weight = self.next_token()?.parse()?;
+        let mut forms = Vec::new();
+        for _ in 0..n {
+            self.eat("\"")?;
+            forms.push(self.next_token()?);
+            self.eat("\"")?;
+        }
+        self.eat(";")?;
+        Ok(VocabSet { weight, forms })
+    }
+
     fn parse_item(&mut self) -> Result<Item> {
         if self.may_eat("?") {
             Ok(Item {
@@ -247,7 +307,7 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Result<Expr> {
-        Ok(match self.multi_eat(&["$", "\"", "["])?.as_str() {
+        Ok(match self.multi_eat(&["$", "\"", "[", "("])?.as_str() {
             "$" => Expr::Variable(self.next_token()?),
             "\"" => {
                 let expr = Expr::Literal(self.next_token()?);
@@ -257,6 +317,14 @@ impl Parser {
             "[" => {
                 let expr = Expr::Rule(self.next_token()?);
                 self.eat("]")?;
+                expr
+            }
+            "(" => {
+                let expr = Expr::Vocab {
+                    name: self.next_token()?,
+                    label: self.next_token()?,
+                };
+                self.eat(")")?;
                 expr
             }
             _ => unreachable!("internal error: multieat reaturned other string than expectations."),
