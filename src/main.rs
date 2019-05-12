@@ -1,18 +1,11 @@
 use std::env;
 use std::error;
 use std::fs::File;
-use std::io::prelude::*;
+use std::io::Read;
 
-mod ast;
-mod parser;
+use sentence_generator::parser;
 
-fn main() {
-    if let Err(e) = logic_main() {
-        println!("error: {}", e);
-    }
-}
-
-fn logic_main() -> Result<(), Box<dyn error::Error>> {
+fn main() -> Result<(), Box<dyn error::Error>> {
     let mut rng = rand::thread_rng();
 
     let mut args = env::args().skip(1);
@@ -22,6 +15,7 @@ fn logic_main() -> Result<(), Box<dyn error::Error>> {
 
     let mut source = String::new();
     File::open(&file_name)?.read_to_string(&mut source)?;
+
     let mut parser = parser::Parser::new(&source);
     let ast = parser.parse()?;
 
