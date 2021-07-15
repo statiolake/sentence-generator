@@ -1,0 +1,131 @@
+rule theorem {
+    choice 10 "定理";
+    choice 10 "ディリクレ積分";
+    choice 10 "Liouvilleの定理";
+    choice 10 "留数定理";
+    choice 10 "周回積分";
+    choice 10 "Cauthyの積分公式";
+    choice 10 "一致の定理";
+    choice 10 "最大値の原理";
+    choice 10 "偏角の原理";
+    choice 10 "Gronwallの補題";
+}
+
+rule word {
+    choice 10 "開集合";
+    choice 10 "真性特異点";
+    choice 10 "極";
+    choice 10 "零点";
+    choice 10 "除去可能特異点";
+    choice 10 "集積点";
+    choice 10 "正則関数";
+    choice 10 "名前";
+    choice 10 "微分方程式";
+    choice 10 "周期解";
+    choice 10 "定数";
+    choice 10 "部分集合";
+    choice 10 "式";
+    choice 10 "積分路";
+    choice 10 "略解";
+    choice 10 "無限遠点";
+    choice 10 "領域";
+    choice 10 "人";
+}
+
+rule trait {
+    choice 10 "Growth";
+}
+
+rule noun {
+    choice 30 [theorem];
+    choice 30 [word];
+    choice 5 [trait];
+}
+
+vocab tverb (mizen renyo renyo_onbin shushi rentai katei) {
+    set 10 "計算してみ" "計算してみ" "計算してみ" "計算してみる" "計算してみる" "計算してみれ";
+    set 10 "積分してみ" "積分してみ" "積分してみ" "積分してみる" "積分してみる" "積分してみれ";
+    set 10 "微分してみ" "微分してみ" "微分してみ" "微分してみる" "微分してみる" "微分してみれ";
+    set 10 "周回積分してみ" "周回積分してみ" "周回積分してみ" "周回積分してみる" "周回積分してみる" "周回積分してみれ";
+    set 10 "解か" "解き" "解い" "解く" "解く" "解け";
+    set 10 "証明し" "証明し" "証明し" "証明する" "証明する" "証明すれ";
+    set 10 "よく見" "よく見" "よく見" "よく見る" "よく見る" "よく見れ";
+    set 10 "書か" "書き" "書い" "書く" "書け" "書け";
+    set 10 "注意し" "注意し" "注意し" "注意する" "注意する" "注意すれ";
+    set 10 "下から抑え" "下から抑え" "下から抑え" "下から抑える" "下から抑える" "下から抑えれ";
+    set 10 "上から抑え" "上から抑え" "上から抑え" "上から抑える" "上から抑える" "上から抑えれ";
+}
+
+vocab iverb (mizen renyo renyo_onbin shushi rentai katei) {
+    set 10 "積分でき" "積分でき" "積分でき" "積分できる" "積分できる" "積分できれ";
+    set 10 "計算でき" "計算でき" "計算でき" "計算できる" "計算できる" "計算できれ";
+    set 10 "収束し" "収束し" "収束し" "収束する" "収束する" "収束すれ";
+    set 10 "発散し" "発散し" "発散し" "発散する" "発散する" "発散すれ";
+    set 10 "頑張ら" "頑張り" "頑張っ" "頑張る" "頑張る" "頑張れ";
+    set 10 "上から抑えられ" "上から抑えられ" "上から抑えられ" "上から抑えられる" "上から抑えられる" "上から抑えられれ";
+    set 10 "下から抑えられ" "下から抑えられ" "下から抑えられ" "下から抑えられる" "下から抑えられる" "下から抑えられれ";
+}
+
+vocab advj (mizen kako renyo shushi rentai katei) {
+    set 10 "一意でしょ" "一意でし" "一意に" "一意です" "一意な" "一意なら";
+    set 10 "有界でしょ" "有界でし" "有界に" "有界です" "有界な" "有界なら";
+    set 10 "自然でしょ" "自然でし" "自然に" "自然です" "自然な" "自然なら";
+    set 10 "自明でしょ" "自明でし" "自明に" "自明です" "自明な" "自明なら";
+    set 10 "小さいでしょ" "小さいのでし" "小さく" "小さいです" "小さい" "小さけれ";
+    set 10 "大きいでしょ" "大きいのでし" "大きく" "大きいです" "大きい" "大きけれ";
+}
+
+rule post_subj {
+    choice 10 "が";
+    choice 10 "は";
+}
+
+rule post_obj {
+    choice 10 "を";
+}
+
+rule subjc {
+    choice 10 (advj rentai) [noun] [post_subj];
+    choice 10 [noun] "の" [noun] [post_subj];
+}
+
+rule tverbc {
+    choice 15 (tverb shushi) "と";
+    choice 10 (tverb shushi) "ので";
+    choice 10 (tverb katei) "ば";
+}
+
+rule iverbc {
+    choice 15 (iverb shushi) "と";
+    choice 10 (iverb shushi) "ので";
+    choice 50 (iverb renyo_onbin) "て";
+    choice 10 (iverb katei) "ば";
+    choice 10 (advj katei) "ば";
+}
+
+rule verbc {
+    choice 10 (advj rentai) [noun] [post_obj] (advj renyo) [tverbc];
+    choice 10 (advj renyo) [iverbc];
+}
+
+rule shushi {
+    choice 10 (iverb shushi);
+    choice 10 (advj rentai) [noun] [post_obj] (tverb shushi);
+}
+
+rule renyo {
+    choice 10 (iverb renyo_onbin);
+    choice 10 (advj rentai) [noun] [post_obj] (tverb renyo_onbin);
+}
+
+rule concl {
+    choice 10 [shushi] "問題でした";
+    choice 10 [shushi] "という問題でした";
+    choice 10 [shushi] "と分かります";
+    choice 10 [shushi] "でしょう";
+    choice 10 (advj kako) "た";
+}
+
+rule main {
+    choice 10 [subjc] [verbc] ?70%[subjc] [concl] "。";
+}
