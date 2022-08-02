@@ -86,7 +86,7 @@ impl Program {
 
 fn choose_one<'a, T: HasWeight>(choices: &[&'a T], rng: &mut impl Rng) -> &'a T {
     let sum = choices.iter().fold(0, |ps, x| ps + x.weight());
-    let rnd = rng.gen_range(0, sum);
+    let rnd = rng.gen_range(0..sum);
 
     let mut ps = 0;
     for choice in choices {
@@ -175,7 +175,7 @@ impl Item {
         variables: &HashMap<&String, String>,
         rng: &mut impl Rng,
     ) -> Option<Result> {
-        let rnd = rng.gen_range(0, 100);
+        let rnd = rng.gen_range(0..100);
         if rnd < self.prob {
             Some(self.expr.generate(rules, vocabs, variables, rng))
         } else {

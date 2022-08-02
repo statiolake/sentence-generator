@@ -13,4 +13,4 @@ name = "sentence_generator"
 path = "src/lib.rs"
 
 [dependencies]
-rand = "0.7.0"
+rand = "0.8.5"

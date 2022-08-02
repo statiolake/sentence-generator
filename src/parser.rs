@@ -79,9 +79,9 @@ impl Parser {
 
 fn into_token(s: &str) -> Vec<String> {
     fn flush(tokens: &mut Vec<String>, token: &mut String) {
-        use std::mem::replace;
+        use std::mem::take;
         if !token.is_empty() {
-            tokens.push(replace(token, String::new()));
+            tokens.push(take(token));
         }
     }
 
